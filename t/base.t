@@ -4,6 +4,7 @@ BEGIN { chdir 't' if -d 't' }
 use utf8;
 use open ':std', ':encoding(utf8)';
 use Test::More 'no_plan';
+use Test::Warnings;
 use strict;
 
 
@@ -58,7 +59,13 @@ my $DST_BAG = File::Spec->catdir(@ROOT, 'dst_bag');
   copy($SRC_FILES."/thréê", $DST_BAG);
 
   note "making bag $DST_BAG";
-  my $bag = $Class->make_bag($DST_BAG);
+  my $bag;
+  my $warning = Test::Warnings::warning { $bag = $Class->make_bag($DST_BAG) };
+  like (
+    $warning ,
+    qr/no payload path/,
+    'Got expexted warning from make_bag()',
+  ) or diag 'got unexpected warnings:' , explain($warning);
 
   ok ($bag,       "Object created");
   isa_ok ($bag,   $Class);
