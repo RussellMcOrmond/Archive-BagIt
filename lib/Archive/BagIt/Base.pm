@@ -45,14 +45,36 @@ Achive::BagIt::Base - The common base for both Bagit and dotBagIt
 
 =item Serhiy Bolkun
 
+=item Russell McOrmond
+
 =back
 
 =head1 SOURCE
 
-The original development version is on github at L<http://github.com/rjeschmi/Archive-BagIt>
-and may be cloned from L<git://github.com/rjeschmi/Archive-BagIt.git>
+The original development version was on github at L<http://github.com/rjeschmi/Archive-BagIt>
+and may be cloned from there.
 
 The actual development version is available at L<https://art1pirat.spdns.org/art1/Archive-BagIt>
+
+=head1 TODO
+
+=over
+
+=item Add support for non-Unix based filesystems
+
+=item enhanced testsuite
+
+=item improved plugin mechanism
+
+=item reduce complexity
+
+=item use modern perl code
+
+=item add code to easily update outdated Bags to v1.0
+
+=item add more ecamples in documentation
+
+=back
 
 =cut
 
@@ -774,7 +796,8 @@ This won't make a bag, but it will create the conditions to do that eventually
 
 sub init_metadata {
     my ($class, $bag_path) = @_;
-    unless ( -d $bag_path) { die ( "source bag directory doesn't exist"); }
+    $bag_path =~ s#/$##; # replace trailing slash
+    unless ( -d $bag_path) { die ( "source bag directory '$bag_path' doesn't exist"); }
     my $self = $class->new(bag_path=>$bag_path);
     warn "no payload path\n" if ! -d $self->payload_path;
     unless ( -d $self->payload_path) {
