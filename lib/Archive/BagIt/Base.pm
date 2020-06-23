@@ -192,13 +192,11 @@ has 'bag_checksum' => (
 
 has 'manifest_files' => (
     is => 'ro',
-    lazy => 1,
     builder => '_build_manifest_files',
 );
 
 has 'tagmanifest_files' => (
     is => 'ro',
-    lazy => 1,
     builder => '_build_tagmanifest_files',
 );
 
@@ -252,8 +250,7 @@ around 'BUILDARGS' , sub {
     my $class = shift;
     if (@_ == 1 && !ref $_[0]) {
         return $class->$orig(bag_path=>$_[0]);
-    }
-    else {
+    } else {
         return $class->$orig(@_);
     }
 };
@@ -317,7 +314,6 @@ sub _build_manifest_files {
       push @manifest_files, $manifest_file;
     }
   }
-  #print Dumper(@manifest_files);
   return \@manifest_files;
 }
 
@@ -331,7 +327,6 @@ sub _build_tagmanifest_files {
     }
   }
   return \@tagmanifest_files;
-
 }
 
 sub __build_xxxmanifest_entries {
@@ -342,10 +337,14 @@ sub __build_xxxmanifest_entries {
   foreach my $xxmanifest_file (@xxmanifests) {
     die("Cannot open $xxmanifest_file: $!") unless (open(my $XXMANIFEST,"<:encoding(utf8)", $xxmanifest_file));
     my $algo = $xxmanifest_file;
+    $algo =~ s#//#/#g; # to fix problems with double path-separators
     $algo =~ s#^($bag_path/).bagit/#$1#; # FIXME: only for dotbagit-variant, if dotbagit will be outdated, this should be removed
     $algo =~ s#^$bag_path/##;
     $algo =~ s#^tag##;
     $algo =~ s#^manifest-([a-z0-9]+)\.txt$#$1#;
+    if ($algo =~ m#/#) {
+        die "wrong replacement of path $xxmanifest_file to determine algorithm '$algo' correctly, please contact author";
+    }
     while (my $line = <$XXMANIFEST>) {
       chomp($line);
       my($digest,$file) = split(/\s+/, $line, 2);
@@ -359,12 +358,16 @@ sub __build_xxxmanifest_entries {
 
 sub _build_tagmanifest_entries {
   my ($self) = @_;
-  return $self->__build_xxxmanifest_entries($self->tagmanifest_files);
+  my @tm_files = $self->tagmanifest_files();
+  my $entries = $self->__build_xxxmanifest_entries(@tm_files);
+  return $entries;
 }
 
 sub _build_manifest_entries {
   my ($self) = @_;
-  return $self->__build_xxxmanifest_entries($self->manifest_files);
+  my @m_files = $self->manifest_files();
+  my $entries = $self->__build_xxxmanifest_entries(@m_files);
+  return $entries;
 }
 
 sub _build_payload_files{
@@ -388,9 +391,6 @@ sub _build_payload_files{
     }
     #print "name: ".$File::Find::name."\n";
   }, $payload_dir);
-
-  #print p(@payload);
-
   return wantarray ? @payload : \@payload;
 
 }
@@ -551,14 +551,11 @@ sub load_plugins {
 sub _verify_XXX_manifests {
     my ($self, $xxprefix, $xxmanifest_entries, $files, $return_all_errors) =@_;
     # Read the manifest file
-    #use Data::Printer;
-    #p( $self);
-    #print Dumper($self->{entries});
-    my %manifest = %{$xxmanifest_entries};
     my @payload = @{ $files };
     my %invalids;
     my $bagit = $self->bag_path;
     my $version = $self->bag_version();
+    my %seen; # mark all processed files
     # Evaluate each file against the manifest
     foreach my $alg (keys %{$xxmanifest_entries}) {
         my $manifest_alg = $self->manifests->{$alg};
@@ -567,33 +564,25 @@ sub _verify_XXX_manifests {
             # TODO: return Errormessage?
         }
         my $digestobj = $manifest_alg->algorithm();
-
-        my $xxfilename = "$bagit/$xxprefix-$alg.txt";
+        my $xxfilename = "${bagit}$xxprefix-$alg.txt";
         foreach my $local_name (@payload) {
             # local_name is relative to bagit base
             my ($digest);
-            unless (exists $manifest{$alg}{"$local_name"}) {
-                #system ("tree $bagit");
-                #use File::Slurp;
-                #my $vontent = read_file($xxfilename);
-                #print "Content: '$vontent'\n";
-                #print "Alg=$alg\n";
-                #use Data::Printer;
-                #p( %manifest);
+            unless (exists $xxmanifest_entries->{$alg}->{$local_name}) { # localname as value should exist!
                 die("file found which is not in $xxfilename: [$local_name] (bag-path:$bagit)");
             }
             if (!-r "$bagit/$local_name") {die("Cannot open $bagit/$local_name");}
             $digest = $digestobj->verify_file("$bagit/$local_name");
             print "digest " . $digestobj->name() . " of $bagit/$local_name: $digest\n" if $DEBUG;
-            unless ($digest eq $manifest{$alg}{$local_name}) {
+            my $expected_digest = $xxmanifest_entries->{$alg}->{$local_name};
+            unless ($digest eq $expected_digest) {
                 if ($return_all_errors) {
                     $invalids{$local_name} = $digest;
-                }
-                else {
-                    die("file: $bagit/$local_name invalid, digest ($alg) calculated=$digest, but expected=$manifest{$alg}{$local_name} in file '$xxfilename'");
+                } else {
+                    die("file: $bagit/$local_name invalid, digest ($alg) calculated=$digest, but expected=$expected_digest in file '$xxfilename'");
                 }
             }
-            delete($manifest{$alg}{$local_name});
+            $seen{$alg}{$local_name}=1;
         }
     }
     if($return_all_errors && keys(%invalids) ) {
@@ -603,13 +592,17 @@ sub _verify_XXX_manifests {
         die ("bag verify for bagit $version failed with invalid files");
     }
     # Make sure there are no missing files
-    foreach my $alg (keys %manifest){
-        my @localfiles = keys(%{ $manifest{$alg} });
-        if (@localfiles) {
-            use Data::Printer;
-            p( $self);
-            die("Missing files in bag $bagit for algorithm=$alg", join( " file=", @localfiles));
+    my @missed;
+    foreach my $alg (keys %seen){
+        foreach my $localfile ( keys %{ $xxmanifest_entries->{$alg} } ) {
+            if (exists $seen{$alg}{$localfile} ) { next;}
+            else {
+                push @missed, "Missing file '$localfile' in bag '$bagit' for algorithm=$alg";
+            }
         }
+    }
+    if (@missed){
+        die join("\n", @missed);
     }
     return 1;
 }
@@ -631,7 +624,7 @@ sub _verify_tagmanifests {
     my @non_payload_files = grep { $_ !~ m/tagmanifest-[a-z0-9]+\.txt/} @{ $self->non_payload_files };
     $self->_verify_XXX_manifests(
         "tagmanifest",
-        $self->tagmanifest_entries,
+        $self->tagmanifest_entries(),
         \@non_payload_files,
         $return_all_errors
     );
@@ -671,7 +664,6 @@ sub verify_bag {
     # check forced fixity
     $self->_verify_manifests($forced_fixity_alg, $return_all_errors);
     $self->_verify_tagmanifests($forced_fixity_alg, $return_all_errors);
-
 
     # TODO: check if additional algorithms are used
 
