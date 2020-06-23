@@ -3,7 +3,7 @@ BEGIN { chdir 't' if -d 't' }
 
 use utf8;
 use open ':std', ':encoding(utf8)';
-use Test::More tests => 25;
+use Test::More tests => 33;
 use Test::Exception;
 use strict;
 
@@ -59,6 +59,9 @@ foreach my $prefix (@prefix_manifestfiles) {
             my $bag_ok = Archive::BagIt::Base->make_bag($bag_dir);
             isa_ok($bag_ok, 'Archive::BagIt::Base', "create new valid IE bagit");
             ok($bag_ok->verify_bag(), "check if bag is verified correctly");
+            my $bag_ok2 = Archive::BagIt::Base->make_bag("$bag_dir/"); #add slash at end of $bag_dir
+            isa_ok($bag_ok2, 'Archive::BagIt::Base', "create new valid IE bagit (with slash)");
+            ok($bag_ok2->verify_bag(), "check if bag is verified correctly (with slash)");
             _modify_bag( "$bag_dir/$prefix-$alg.txt");
             my $bag_invalid1 = new_ok("Archive::BagIt::Base" => [ bag_path => $bag_dir ]);
             throws_ok(
