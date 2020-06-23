@@ -192,11 +192,13 @@ has 'bag_checksum' => (
 
 has 'manifest_files' => (
     is => 'ro',
+    lazy => 1,
     builder => '_build_manifest_files',
 );
 
 has 'tagmanifest_files' => (
     is => 'ro',
+    lazy => 1,
     builder => '_build_tagmanifest_files',
 );
 
@@ -237,7 +239,6 @@ has 'manifests' => (
 has 'algos' => (
     is=>'rw',
     isa=>'HashRef',
-
 );
 
 =head2 BUILDARGS
@@ -711,7 +712,8 @@ sub calc_bagsize {
 
 sub create_bagit {
     my($self) = @_;
-    open(my $BAGIT, ">", $self->metadata_path."/bagit.txt") or die("Can't open $self->metadata_path/bagit.txt for writing: $!");
+    my $metadata_path = $self->metadata_path();
+    open(my $BAGIT, ">", "$metadata_path/bagit.txt") or die("Can't open $metadata_path/bagit.txt for writing: $!");
     print($BAGIT "BagIt-Version: 1.0\nTag-File-Character-Encoding: UTF-8");
     close($BAGIT);
     return 1;
@@ -726,7 +728,8 @@ sub create_baginfo {
     $self->_add_or_replace_bag_info('Payload-Oxum', "$octets.$streams");
     $self->_add_or_replace_bag_info('Bag-Size', $self->calc_bagsize());
     # The RFC does not allow reordering:
-    open(my $BAGINFO, ">", $self->metadata_path."/bag-info.txt") or die("Can't open $self->metadata_path/bag-info.txt for writing: $!");
+    my $metadata_path = $self->metadata_path();
+    open(my $BAGINFO, ">", "$metadata_path/bag-info.txt") or die("Can't open $metadata_path/bag-info.txt for writing: $!");
     foreach my $entry (@{ $self->bag_info() }) {
         my %tmp = %{ $entry };
         my ($key, $value) = each %tmp;
@@ -752,9 +755,12 @@ sub store {
         $self->manifests->{$algorithm}->create_manifest();
     }
     foreach my $algorithm ( keys %{ $self->manifests }) {
-
         $self->manifests->{$algorithm}->create_tagmanifest();
     }
+    # retrigger builds
+    $self->{checksum_algos} = $self->_build_checksum_algos();
+    $self->{tagmanifest_files} = $self->_build_tagmanifest_files();
+    $self->{manifest_files} = $self->_build_manifest_files();
     return 1;
 }
 
@@ -782,12 +788,13 @@ sub init_metadata {
     }
 
     $self->store();
-
     # FIXME: deprecated?
     #foreach my $algorithm (keys %{$self->manifests}) {
         #$self->manifests->{$algorithm}->create_bagit();
         #$self->manifests->{$algorithm}->create_baginfo();
     #}
+
+
 
     return $self;
 }
