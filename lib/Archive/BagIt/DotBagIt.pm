@@ -24,7 +24,10 @@ has 'metadata_path' => (
 
 sub _build_metadata_path {
     my ($self) = @_;
-    return $self->bag_path."/.bagit";
+    unless (defined $self->{bag_path}) {
+        die "no bag_path given";
+    }
+    return join("/", $self->{bag_path}, ".bagit");
 }
 
 has 'payload_path' => (
