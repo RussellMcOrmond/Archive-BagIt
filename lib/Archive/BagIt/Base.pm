@@ -15,7 +15,7 @@ use File::stat;
 use Digest::MD5;
 use Class::Load qw(load_class);
 use Carp;
-use List::Util qw( uniq);
+use List::Util qw(uniq);
 
 # VERSION
 

@@ -487,12 +487,14 @@ sub tagmanifest_files {
 
 =item Serhiy Bolkun
 
+=item Russell McOrmond
+
 =back
 
 =head1 SOURCE
 
 The original development version is on github at L<http://github.com/rjeschmi/Archive-BagIt>
-and may be cloned from L<git://github.com/rjeschmi/Archive-BagIt.git>
+and may be cloned from there.
 
 The actual development version is available at L<https://art1pirat.spdns.org/art1/Archive-BagIt>
 
