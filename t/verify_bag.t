@@ -41,8 +41,8 @@ sub _prepare_bag {
     write_file("$bag_dir/data/payload.txt", "PAYLOAD" );
 }
 
-sub _modify_bag {
-    my ($bag_dir, $file_to_modify) = @_;
+sub _modify_bag { # writes invalid checksum to a manifestfile
+    my ($file_to_modify) = @_;
     my ($tm, $invalid_checksum);
     $tm = read_file($file_to_modify);
     $invalid_checksum = "0" x 32;
@@ -59,7 +59,7 @@ foreach my $prefix (@prefix_manifestfiles) {
             my $bag_ok = Archive::BagIt::Base->make_bag($bag_dir);
             isa_ok($bag_ok, 'Archive::BagIt::Base', "create new valid IE bagit");
             ok($bag_ok->verify_bag(), "check if bag is verified correctly");
-            _modify_bag( $bag_dir, "$bag_dir/$prefix-$alg.txt");
+            _modify_bag( "$bag_dir/$prefix-$alg.txt");
             my $bag_invalid1 = new_ok("Archive::BagIt::Base" => [ bag_path => $bag_dir ]);
             throws_ok(
                 sub {
