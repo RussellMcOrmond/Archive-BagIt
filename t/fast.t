@@ -1,5 +1,6 @@
 BEGIN { chdir 't' if -d 't' }
 
+use warnings;
 use utf8;
 use open ':std', ':encoding(utf8)';
 use Test::More 'no_plan';
@@ -67,7 +68,6 @@ my $DST_BAG   = File::Spec->catdir( @ROOT, 'dst_bag' );
     copy( $SRC_FILES . "/thréê", $DST_BAG );
 
     note "making bag via $ClassBase at $DST_BAG";
-
     my $bag;
     my $warning =
       Test::Warnings::warning { $bag = $ClassBase->make_bag($DST_BAG) };
@@ -80,7 +80,7 @@ my $DST_BAG   = File::Spec->catdir( @ROOT, 'dst_bag' );
     ok( $bag, "Object created" );
     isa_ok( $bag, $ClassBase );
 
-    my $bag = $Class->new($DST_BAG);
+    $bag = $Class->new($DST_BAG);
     ok( $bag, "Object created" );
     isa_ok( $bag, $Class );
 
