@@ -96,11 +96,12 @@ CONTRIBUTORS
 
     Serhiy Bolkun
 
+    Russell McOrmond
+
 SOURCE
 
     The original development version is on github at
-    http://github.com/rjeschmi/Archive-BagIt and may be cloned from
-    git://github.com/rjeschmi/Archive-BagIt.git
+    http://github.com/rjeschmi/Archive-BagIt and may be cloned from there.
 
     The actual development version is available at
     https://art1pirat.spdns.org/art1/Archive-BagIt
