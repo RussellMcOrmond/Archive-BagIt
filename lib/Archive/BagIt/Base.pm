@@ -582,20 +582,18 @@ sub _verify_XXX_manifests {
     # Evaluate each file against the manifest
     foreach my $alg (keys %{$xxmanifest_entries}) {
         my $manifest_alg = $self->manifests->{$alg};
-        if (! defined $manifest_alg) {
-            next;
-            # TODO: return Errormessage?
-        }
+        next unless (defined $manifest_alg); # FIXME_ errormessage?
         my $digestobj = $manifest_alg->algorithm();
         my $xxfilename = "${bagit}$xxprefix-$alg.txt";
         foreach my $local_name (@payload) {
             # local_name is relative to bagit base
-            my ($digest);
             unless (exists $xxmanifest_entries->{$alg}->{$local_name}) { # localname as value should exist!
                 die("file found which is not in $xxfilename: [$local_name] (bag-path:$bagit)");
             }
-            if (!-r "$bagit/$local_name") {die("Cannot open $bagit/$local_name");}
-            $digest = $digestobj->verify_file("$bagit/$local_name");
+            unless (-r "$bagit/$local_name") {
+                die("Cannot open $bagit/$local_name");
+            }
+            my $digest = $digestobj->verify_file("$bagit/$local_name");
             print "digest " . $digestobj->name() . " of $bagit/$local_name: $digest\n" if $DEBUG;
             my $expected_digest = $xxmanifest_entries->{$alg}->{$local_name};
             unless ($digest eq $expected_digest) {
