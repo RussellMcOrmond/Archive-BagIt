@@ -363,8 +363,8 @@ sub __build_xxxmanifest_entries {
     $algo =~ s#//#/#g; # to fix problems with double path-separators
     $algo =~ s#^($bag_path/).bagit/#$1#; # FIXME: only for dotbagit-variant, if dotbagit will be outdated, this should be removed
     $algo =~ s#^$bag_path/##;
-    $algo =~ s#^tag##;
-    $algo =~ s#^manifest-([a-z0-9]+)\.txt$#$1#;
+    $algo =~ s#tag(manifest-[a-z0-9]+\.txt)#$1#;
+    $algo =~ s#.*manifest-([a-z0-9]+)\.txt$#$1#;
     if ($algo =~ m#/#) {
         die "wrong replacement of path $xxmanifest_file to determine algorithm '$algo' correctly, please contact author";
     }
