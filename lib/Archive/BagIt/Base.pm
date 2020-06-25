@@ -678,7 +678,7 @@ sub verify_bag {
 
 
     die("$manifest_file is not a regular file for bagit $version") unless -f ($manifest_file);
-    die("$payload_dir is not a directory") unless -d ($payload_dir);
+    die("$payload_dir is not a directory or does not exist") unless -d ($payload_dir);
 
     unless ($version > .95) {
         die ("Bag Version $version is unsupported");
