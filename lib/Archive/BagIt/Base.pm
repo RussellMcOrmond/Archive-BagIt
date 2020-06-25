@@ -590,17 +590,18 @@ sub _verify_XXX_manifests {
             unless (exists $xxmanifest_entries->{$alg}->{$local_name}) { # localname as value should exist!
                 die("file found which is not in $xxfilename: [$local_name] (bag-path:$bagit)");
             }
-            unless (-r "$bagit/$local_name") {
-                die("Cannot open $bagit/$local_name");
+            my $full_name = $bagit."/".$local_name;
+            unless (-r $full_name) {
+                die("Cannot open $full_name");
             }
-            my $digest = $digestobj->verify_file("$bagit/$local_name");
-            print "digest " . $digestobj->name() . " of $bagit/$local_name: $digest\n" if $DEBUG;
+            my $digest = $digestobj->verify_file($full_name);
+            print "digest " . $digestobj->name() . " of $full_name: $digest\n" if $DEBUG;
             my $expected_digest = $xxmanifest_entries->{$alg}->{$local_name};
             unless ($digest eq $expected_digest) {
                 if ($return_all_errors) {
                     $invalids{$local_name} = $digest;
                 } else {
-                    die("file: $bagit/$local_name invalid, digest ($alg) calculated=$digest, but expected=$expected_digest in file '$xxfilename'");
+                    die("file: $full_name invalid, digest ($alg) calculated=$digest, but expected=$expected_digest in file '$xxfilename'");
                 }
             }
             $seen{$alg}{$local_name}=1;
