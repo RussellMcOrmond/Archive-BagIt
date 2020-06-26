@@ -586,7 +586,14 @@ sub _verify_XXX_manifests {
         }
         return;
     }
-
+    foreach my $local_name (@payload) {
+        # local_name is relative to bagit base
+        unless (-r $bagit."/".$local_name) {
+            _invalid_report_or_die(
+                "cannot read $local_name (bag-path:$bagit)",
+            );
+        }
+    }
     # Evaluate each file against the manifest
     foreach my $alg (keys %{$xxmanifest_entries}) {
         my $manifest_alg = $self->manifests->{$alg};
@@ -599,11 +606,6 @@ sub _verify_XXX_manifests {
             unless (exists $xxmanifest_entries->{$alg}->{$local_name}) { # localname as value should exist!
                 _invalid_report_or_die(
                     "file in payload found, which is not in $xxfilename: [$local_name] (bag-path:$bagit)",
-                );
-            }
-            unless (-r $bagit."/".$local_name) {
-                _invalid_report_or_die(
-                    "cannot read $local_name (bag-path:$bagit)",
                 );
             }
         }
