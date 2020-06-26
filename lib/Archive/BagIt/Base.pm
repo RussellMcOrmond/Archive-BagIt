@@ -574,56 +574,81 @@ sub _verify_XXX_manifests {
     my ($self, $xxprefix, $xxmanifest_entries, $files, $return_all_errors) =@_;
     # Read the manifest file
     my @payload = @{ $files };
-    my %invalids;
+    my @invalid_messages;
     my $bagit = $self->bag_path;
     my $version = $self->bag_version();
-    my %seen; # mark all processed files
+    my sub _invalid_report_or_die {
+        my $message = shift;
+        if ($return_all_errors) {
+            push @invalid_messages, $message;
+        } else {
+            die($message);
+        }
+        return;
+    }
+
     # Evaluate each file against the manifest
     foreach my $alg (keys %{$xxmanifest_entries}) {
         my $manifest_alg = $self->manifests->{$alg};
         next unless (defined $manifest_alg); # FIXME_ errormessage?
         my $digestobj = $manifest_alg->algorithm();
-        my $xxfilename = "${bagit}$xxprefix-$alg.txt";
+        my $xxfilename = "${bagit}/${xxprefix}-${alg}.txt";
+        # first check if each file from payload exists in manifest_entries for given alg
         foreach my $local_name (@payload) {
             # local_name is relative to bagit base
             unless (exists $xxmanifest_entries->{$alg}->{$local_name}) { # localname as value should exist!
-                die("file found which is not in $xxfilename: [$local_name] (bag-path:$bagit)");
+                _invalid_report_or_die(
+                    "file in payload found, which is not in $xxfilename: [$local_name] (bag-path:$bagit)",
+                );
             }
+            unless (-r $bagit."/".$local_name) {
+                _invalid_report_or_die(
+                    "cannot read $local_name (bag-path:$bagit)",
+                );
+            }
+        }
+        # second check if each file from manifest_entries for given alg exists in payload
+        foreach my $local_name ( keys %{ $xxmanifest_entries->{alg} } ) {
+            unless (any { $_ eq $local_name } @payload) {
+                _invalid_report_or_die(
+                    "file expected via $xxfilename,  which is not found in payload: [$local_name] (bag-path:$bagit)"
+                );
+            }
+        }
+        # all preconditions full filled, now calc all digests
+        my @digest_hashes = map {
+            my $local_name = $_;
+            # local_name is relative to bagit base
             my $full_name = $bagit."/".$local_name;
-            unless (-r $full_name) {
-                die("Cannot open $full_name");
-            }
             my $digest = $digestobj->verify_file($full_name);
             print "digest " . $digestobj->name() . " of $full_name: $digest\n" if $DEBUG;
             my $expected_digest = $xxmanifest_entries->{$alg}->{$local_name};
-            unless ($digest eq $expected_digest) {
-                if ($return_all_errors) {
-                    $invalids{$local_name} = $digest;
-                } else {
-                    die("file: $full_name invalid, digest ($alg) calculated=$digest, but expected=$expected_digest in file '$xxfilename'");
+            my $tmp;
+            $tmp->{calculated_digest} = $digest;
+            $tmp->{expected_digest} = $expected_digest;
+            $tmp->{local_name} = $local_name;
+            $tmp;
+        } @payload;
+        # compare digests
+        foreach my $digest_entry (@digest_hashes) {
+            unless ($digest_entry->{calculated_digest} eq $digest_entry->{expected_digest}) {
+                _invalid_report_or_die(
+                    sprintf ("file: %s invalid, digest (%s) calculated=%s, but expected=%s in file '%s'",
+                        $digest_entry->{local_name},
+                        $alg,
+                        $digest_entry->{calculated_digest},
+                        $digest_entry->{expected_digest},
+                        $xxfilename
+                    )
+                );
                 }
             }
-            $seen{$alg}{$local_name}=1;
         }
-    }
-    if($return_all_errors && keys(%invalids) ) {
-        foreach my $invalid (keys(%invalids)) {
-            print "invalid: $invalid hash: ".$invalids{$invalid}."\n";
+    if($return_all_errors && @invalid_messages ) {
+        foreach my $invalid (@invalid_messages) {
+            print "$invalid\n";
         }
         die ("bag verify for bagit $version failed with invalid files");
-    }
-    # Make sure there are no missing files
-    my @missed;
-    foreach my $alg (keys %seen){
-        foreach my $localfile ( keys %{ $xxmanifest_entries->{$alg} } ) {
-            if (exists $seen{$alg}{$localfile} ) { next;}
-            else {
-                push @missed, "Missing file '$localfile' in bag '$bagit' for algorithm=$alg";
-            }
-        }
-    }
-    if (@missed){
-        die join("\n", @missed);
     }
     return 1;
 }
