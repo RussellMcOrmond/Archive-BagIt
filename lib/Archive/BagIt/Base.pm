@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use diagnostics;
 
 package Archive::BagIt::Base;
 
@@ -15,7 +16,7 @@ use Digest::MD5;
 use Class::Load qw(load_class);
 use Carp;
 use List::Util qw(uniq);
-
+#use Parallel::Iterator qw(iterate_as_array);
 # VERSION
 
 use Sub::Quote;
@@ -76,6 +77,13 @@ The actual development version is available at L<https://art1pirat.spdns.org/art
 =back
 
 =cut
+
+has 'parallel' => (
+    is        => 'rw',
+    predicate => 'has_parallel',
+    default   => undef,
+);
+
 
 has 'bag_path' => (
     is => 'rw',
@@ -618,10 +626,10 @@ sub _verify_XXX_manifests {
             }
         }
         # all preconditions full filled, now calc all digests
-        my @digest_hashes = map {
-            my $local_name = $_;
+        my sub __calc_digests ($) {
+            my $local_name = shift;
             # local_name is relative to bagit base
-            my $full_name = $bagit."/".$local_name;
+            my $full_name = $bagit . "/" . $local_name;
             my $digest = $digestobj->verify_file($full_name);
             print "digest " . $digestobj->name() . " of $full_name: $digest\n" if $DEBUG;
             my $expected_digest = $xxmanifest_entries->{$alg}->{$local_name};
@@ -630,7 +638,30 @@ sub _verify_XXX_manifests {
             $tmp->{expected_digest} = $expected_digest;
             $tmp->{local_name} = $local_name;
             $tmp;
-        } @payload;
+        }
+
+        my @digest_hashes;
+        # check if we could use parallel
+        my $is_parallelizeable;
+        if (($self->has_parallel()) && (defined $self->parallel)) {
+            my $err;
+            ($is_parallelizeable, $err) = Class::Load::try_load_class("Parallel::Iterator");
+            if (!$is_parallelizeable) {
+                warn "Class 'Parallel::Iterator' could not be loaded…, $err\n";
+                $self->{parallel} = undef;
+            }
+        }
+        if ($is_parallelizeable) {
+            my $class = Class::Load::load_class("Parallel::Iterator");
+            $class->import( qw(iterate_as_array));
+            @digest_hashes = iterate_as_array (
+                sub {
+                    my ($idx, $local_name) = @_;
+                    return __calc_digests($local_name);
+                }, \@payload);
+        } else { # fallback to serial processing
+            @digest_hashes = map { __calc_digests( $_ ) } @payload;
+        }
         # compare digests
         foreach my $digest_entry (@digest_hashes) {
             unless ($digest_entry->{calculated_digest} eq $digest_entry->{expected_digest}) {
