@@ -27,6 +27,25 @@ my $DEBUG=0;
 
 Achive::BagIt::Base - The common base for both Bagit and dotBagIt
 
+=head1 SYNOPSIS
+
+This modules will hopefully help with the basic commands needed to create
+and verify a bag. This part supports BagIt 1.0 according to RFC 8493 ([https://tools.ietf.org/html/rfc8493](https://tools.ietf.org/html/rfc8493)).
+
+    use Archive::BagIt::Base;
+
+    #read in an existing bag:
+    my $bag_dir = "/path/to/bag";
+    my $bag = Archive::BagIt::Base->new($bag_dir);
+
+
+    #construct bag in an existing directory
+    my $bag2 = Archive::BagIt::Base->make_bag($bag_dir);
+
+    # Validate a BagIt archive against its manifest
+    my $bag3 = Archive::BagIt::Base->new($bag_dir);
+    my $is_valid = $bag3->verify_bag();
+
 =head1 AUTHORS
 
 =over
@@ -270,9 +289,39 @@ has 'algos' => (
     #isa=>'HashRef',
 );
 
-=head2 BUILDARGS
+=head2 Constructor
 
-The constructor sub, will create a bag with a single argument
+The constructor sub, will create a bag with a single argument,
+
+    use Archive::BagIt::Base;
+
+    #read in an existing bag:
+    my $bag_dir = "/path/to/bag";
+    my $bag = Archive::BagIt::Base->new($bag_dir);
+
+or use hashreferences
+
+    use Archive::BagIt::Base;
+
+    #read in an existing bag:
+    my $bag_dir = "/path/to/bag";
+    my $bag = Archive::BagIt::Base->new(
+        bag_path => $bag_dir,
+        parallel => 1
+    );
+
+The arguments are:
+
+=over 1
+
+=item C<bag_path> - path to bag-directory
+
+=item C<parallel> - if set and Parallel::Iterator available, it verifies files in parallel.
+      Hint: use it only for very large bagits, because overhead for parallelization
+
+
+=back
+
 =cut
 
 around 'BUILDARGS' , sub {
