@@ -16,7 +16,7 @@ use Digest::MD5;
 use Class::Load qw(load_class);
 use Carp;
 use List::Util qw(uniq);
-#use Parallel::Iterator qw(iterate_as_array);
+
 # VERSION
 
 use Sub::Quote;
@@ -78,7 +78,7 @@ The actual development version is available at L<https://art1pirat.spdns.org/art
 
 =cut
 
-has 'parallel' => (
+has 'parallel' => ( # used for parallel verify, only usefull if bagits with many files expected!
     is        => 'rw',
     predicate => 'has_parallel',
     default   => undef,
