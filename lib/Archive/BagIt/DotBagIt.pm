@@ -6,7 +6,7 @@ package Archive::BagIt::DotBagIt;
 # VERSION
 
 use Sub::Quote;
-use Moose;
+use Moo;
 
 extends "Archive::BagIt::Base";
 

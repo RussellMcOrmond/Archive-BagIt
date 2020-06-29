@@ -2,14 +2,14 @@ use strict;
 use warnings;
 package Archive::BagIt::Role::Manifest;
 
-use Moose::Role;
+use Moo::Role;
 with 'Archive::BagIt::Role::Plugin';
 
 use namespace::autoclean;
 
 has 'algorithm' => (
     is => 'rw',
-    isa=>'HashRef',
+    #isa=>'HashRef',
 );
 
 sub BUILD {}
@@ -70,5 +70,5 @@ sub create_tagmanifest {
     return 1;
 }
 
-no Moose;
+no Moo;
 1;

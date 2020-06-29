@@ -5,19 +5,19 @@ use warnings;
 
 package Archive::BagIt::Plugin::Algorithm::SHA512;
 
-use Moose;
+use Moo;
 use namespace::autoclean;
 
 with 'Archive::BagIt::Role::Algorithm';
 
-has 'plugin_name' => (
+has '+plugin_name' => (
     is => 'ro',
     default => 'Archive::BagIt::Plugin::Algorithm::SHA512',
 );
 
-has 'name' => (
+has '+name' => (
     is      => 'ro',
-    isa     => 'Str',
+    #isa     => 'Str',
     default => 'sha512',
 );
 

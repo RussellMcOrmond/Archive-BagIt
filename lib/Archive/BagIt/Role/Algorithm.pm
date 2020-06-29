@@ -6,7 +6,7 @@ use warnings;
 
 package Archive::BagIt::Role::Algorithm;
 
-use Moose::Role;
+use Moo::Role;
 with 'Archive::BagIt::Role::Plugin';
 
 has 'name' => (
@@ -32,5 +32,5 @@ sub register_plugin {
     $self->bagit->algos( {$self->name => $self });
     return 1;
 }
-no Moose;
+no Moo;
 1;

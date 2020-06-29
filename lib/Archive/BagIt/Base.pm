@@ -3,8 +3,7 @@ use warnings;
 
 package Archive::BagIt::Base;
 
-use Moose;
-use namespace::autoclean;
+use Moo;
 
 use utf8;
 use open ':std', ':encoding(utf8)';
@@ -250,17 +249,17 @@ has 'non_payload_files' => (
 
 has 'plugins' => (
     is=>'rw',
-    isa=>'HashRef',
+    #isa=>'HashRef',
 );
 
 has 'manifests' => (
     is=>'rw',
-    isa=>'HashRef',
+    #isa=>'HashRef',
 );
 
 has 'algos' => (
     is=>'rw',
-    isa=>'HashRef',
+    #isa=>'HashRef',
 );
 
 =head2 BUILDARGS

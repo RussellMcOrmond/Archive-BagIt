@@ -4,14 +4,14 @@ use warnings;
 #ABSTRACT: The md5 plugin (default)
 package Archive::BagIt::Plugin::Manifest::SHA512;
 
-use Moose;
+use Moo;
 with 'Archive::BagIt::Role::Manifest';
 
 
 use Digest::SHA;
 use Sub::Quote;
 
-has 'plugin_name' => (
+has '+plugin_name' => (
     is => 'ro',
     default => 'Archive::BagIt::Plugin::Manifest::SHA512',
 );
@@ -24,7 +24,7 @@ has 'manifest_files' => (
     is => 'ro',
 );
 
-has 'algorithm' => (
+has '+algorithm' => (
     is => 'rw',
 );
 
