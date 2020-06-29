@@ -4,7 +4,7 @@ BEGIN { chdir 't' if -d 't' }
 use warnings;
 use utf8;
 use open ':std', ':encoding(utf8)';
-use Test::More tests => 33;
+use Test::More tests => 53;
 use Test::Exception;
 use strict;
 
@@ -63,6 +63,10 @@ foreach my $prefix (@prefix_manifestfiles) {
             my $bag_ok2 = Archive::BagIt::Base->make_bag("$bag_dir/"); #add slash at end of $bag_dir
             isa_ok($bag_ok2, 'Archive::BagIt::Base', "create new valid IE bagit (with slash)");
             ok($bag_ok2->verify_bag(), "check if bag is verified correctly (with slash)");
+            my $bag_ok3 = Archive::BagIt::Base->make_bag($bag_dir);
+            ok($bag_ok3->parallel(1), "parallel => 1");
+            isa_ok($bag_ok3, 'Archive::BagIt::Base', "create new valid IE bagit (parallel)");
+            ok($bag_ok3->verify_bag(), "check if bag is verified correctly (parallel)");
             _modify_bag( "$bag_dir/$prefix-$alg.txt");
             my $bag_invalid1 = new_ok("Archive::BagIt::Base" => [ bag_path => $bag_dir ]);
             throws_ok(
@@ -71,6 +75,13 @@ foreach my $prefix (@prefix_manifestfiles) {
                         { return_all_errors => 1 }
                     )
                 }, qr{bag verify for bagit 1.0 failed with invalid files}, "check if bag fails verification of broken $prefix-$alg.txt (all errors)");
+            my $bag_invalid_parallel = new_ok("Archive::BagIt::Base" => [ bag_path => $bag_dir, parallel => 1 ]);
+            throws_ok(
+                sub {
+                    $bag_invalid_parallel->verify_bag(
+                        { return_all_errors => 1 }
+                    )
+                }, qr{bag verify for bagit 1.0 failed with invalid files}, "check if bag fails verification of broken $prefix-$alg.txt (parallel, all errors)");
             my $bag_invalid2 = new_ok("Archive::BagIt::Base" => [ bag_path => $bag_dir ]);
             throws_ok(
                 sub {
@@ -79,6 +90,7 @@ foreach my $prefix (@prefix_manifestfiles) {
         }
     }
 }
+
 
 
 1;
