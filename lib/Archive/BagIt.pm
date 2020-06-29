@@ -1,12 +1,7 @@
 package Archive::BagIt;
-
-use strict;
-use 5.006;
-use warnings;
-
-
 # VERSION
-
+use strict;
+use warnings;
 use utf8;
 use open ':std', ':utf8';
 our @checksum_algos = qw(md5 sha1);
