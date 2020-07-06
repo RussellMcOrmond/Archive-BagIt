@@ -21,7 +21,7 @@ has '+name' => (
     default => 'md5',
 );
 
-has '_digest_md5' => (
+has '_digest' => (
     is => 'ro',
     lazy => 1,
     builder => '_build_digest_md5',
@@ -41,9 +41,9 @@ sub get_hash_string {
         = stat $fh;
     my $buffer;
     while (read($fh, $buffer, $blksize)) {
-        $self->_digest_md5->add($buffer);
+        $self->_digest->add($buffer);
     }
-    return $self->_digest_md5->hexdigest;
+    return $self->_digest->hexdigest;
 
 }
 

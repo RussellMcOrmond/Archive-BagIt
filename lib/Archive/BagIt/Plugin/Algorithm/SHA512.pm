@@ -21,7 +21,7 @@ has '+name' => (
     default => 'sha512',
 );
 
-has '_digest_sha' => (
+has '_digest' => (
     is => 'ro',
     lazy => 1,
     builder => '_build_digest_sha',
@@ -41,9 +41,9 @@ sub get_hash_string {
         = stat $fh;
     my $buffer;
     while (read($fh, $buffer, $blksize)) {
-        $self->_digest_sha->add($buffer);
+        $self->_digest->add($buffer);
     }
-    return $self->_digest_sha->hexdigest;
+    return $self->_digest->hexdigest;
 }
 
 sub verify_file {
