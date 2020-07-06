@@ -626,6 +626,61 @@ sub load_plugins {
     return 1;
 }
 
+sub __calc_digest {
+    my ($digestobj, $filename) = @_;
+    open(my $fh, '<', $filename) || die("Can't open '$filename', $!");
+    binmode($fh);
+    my $digest = $digestobj->get_hash_string($fh);
+    close $fh || die("could not close file '$filename', $!");
+    return $digest;
+}
+
+# calc digest
+# expects digestobj, expected_ref, array_ref of filenames
+# returns arrayref of hashes where each entry has
+# $tmp->{calculated_digest} = $digest;
+# $tmp->{expected_digest} = $expected_digest;
+# $tmp->{filename} = $filename;
+sub calc_digests($$) {
+    my ($self, $bagit, $digestobj, $filenames_ref) = @_;
+    my @digest_hashes;
+    # check if we could use parallel
+    my $is_parallelizeable;
+    if (($self->has_parallel()) && (defined $self->parallel)) {
+        my $err;
+        ($is_parallelizeable, $err) = Class::Load::try_load_class("Parallel::Iterator");
+        if (!$is_parallelizeable) {
+            warn "Class 'Parallel::Iterator' could not be loaded…, $err\n";
+            $self->{parallel} = undef;
+        }
+    }
+    if ($is_parallelizeable) {
+        my $class = Class::Load::load_class("Parallel::Iterator");
+        $class->import( qw(iterate_as_array));
+        @digest_hashes = iterate_as_array(
+            sub {
+                my ($idx, $localname) = @_;
+                my $fullname = $bagit ."/". $localname;
+                my $tmp;
+                $tmp->{calculated_digest} = __calc_digest($digestobj, $fullname);
+                $tmp->{local_name} = $localname;
+                $tmp->{full_name} = $fullname;
+                $tmp;
+            }, $filenames_ref);
+    }
+    else { # fallback to serial processing
+        @digest_hashes = map {
+            my $localname = $_;
+            my $fullname = $bagit ."/". $localname;
+            my $tmp;
+            $tmp->{calculated_digest} = __calc_digest($digestobj, $fullname);
+            $tmp->{local_name} = $localname;
+            $tmp->{full_name} = $fullname;
+            $tmp;
+        } @{$filenames_ref};
+    }
+    return \@digest_hashes;
+}
 
 sub _verify_XXX_manifests {
     my ($self, $xxprefix, $xxmanifest_entries, $files, $return_all_errors) =@_;
@@ -634,7 +689,7 @@ sub _verify_XXX_manifests {
     my @invalid_messages;
     my $bagit = $self->bag_path;
     my $version = $self->bag_version();
-    my sub _invalid_report_or_die {
+    my $_invalid_report_or_die =sub {
         my $message = shift;
         if ($return_all_errors) {
             push @invalid_messages, $message;
@@ -642,11 +697,11 @@ sub _verify_XXX_manifests {
             die($message);
         }
         return;
-    }
+    };
     foreach my $local_name (@payload) {
         # local_name is relative to bagit base
         unless (-r $bagit."/".$local_name) {
-            _invalid_report_or_die(
+            $_invalid_report_or_die->(
                 "cannot read $local_name (bag-path:$bagit)",
             );
         }
@@ -661,7 +716,7 @@ sub _verify_XXX_manifests {
         foreach my $local_name (@payload) {
             # local_name is relative to bagit base
             unless (exists $xxmanifest_entries->{$alg}->{$local_name}) { # localname as value should exist!
-                _invalid_report_or_die(
+                $_invalid_report_or_die->(
                     "file in payload found, which is not in $xxfilename: [$local_name] (bag-path:$bagit)",
                 );
             }
@@ -675,46 +730,18 @@ sub _verify_XXX_manifests {
             }
         }
         # all preconditions full filled, now calc all digests
-        my sub __calc_digests ($) {
-            my $local_name = shift;
-            # local_name is relative to bagit base
-            my $full_name = $bagit . "/" . $local_name;
-            my $digest = $digestobj->verify_file($full_name);
-            print "digest " . $digestobj->name() . " of $full_name: $digest\n" if $DEBUG;
-            my $expected_digest = $xxmanifest_entries->{$alg}->{$local_name};
-            my $tmp;
-            $tmp->{calculated_digest} = $digest;
-            $tmp->{expected_digest} = $expected_digest;
-            $tmp->{local_name} = $local_name;
-            $tmp;
-        }
 
         my @digest_hashes;
-        # check if we could use parallel
-        my $is_parallelizeable;
-        if (($self->has_parallel()) && (defined $self->parallel)) {
-            my $err;
-            ($is_parallelizeable, $err) = Class::Load::try_load_class("Parallel::Iterator");
-            if (!$is_parallelizeable) {
-                warn "Class 'Parallel::Iterator' could not be loaded…, $err\n";
-                $self->{parallel} = undef;
-            }
-        }
-        if ($is_parallelizeable) {
-            my $class = Class::Load::load_class("Parallel::Iterator");
-            $class->import( qw(iterate_as_array));
-            @digest_hashes = iterate_as_array (
-                sub {
-                    my ($idx, $local_name) = @_;
-                    return __calc_digests($local_name);
-                }, \@payload);
-        } else { # fallback to serial processing
-            @digest_hashes = map { __calc_digests( $_ ) } @payload;
-        }
+
+
+        my $digest_hashes_ref = $self->calc_digests($bagit, $digestobj, \@payload);
+
         # compare digests
-        foreach my $digest_entry (@digest_hashes) {
+        foreach my $digest_entry (@{ $digest_hashes_ref }) {
+            my $local_name = $digest_entry->{local_name};
+            $digest_entry->{expected_digest} = $xxmanifest_entries->{$alg}->{$local_name};
             unless ($digest_entry->{calculated_digest} eq $digest_entry->{expected_digest}) {
-                _invalid_report_or_die(
+                $_invalid_report_or_die->(
                     sprintf ("file: %s invalid, digest (%s) calculated=%s, but expected=%s in file '%s'",
                         $digest_entry->{local_name},
                         $alg,
