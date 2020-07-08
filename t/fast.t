@@ -28,7 +28,14 @@ my $DST_BAG   = File::Spec->catdir( @ROOT, 'dst_bag' );
 
 {
     # Still using old interface
-    my $bag = $Class->new($SRC_BAG);
+    my $bag;
+    my $warning = Test::Warnings::warning { $bag = $Class->new($SRC_BAG) };
+    like(
+        $warning,
+        qr//,
+        "Should get no warning from $Class ->new()",
+    ) or diag 'got unexpected warnings:', explain($warning);
+
     ok( $bag, "Object created" );
     isa_ok( $bag, $Class );
 
@@ -47,7 +54,13 @@ my $DST_BAG   = File::Spec->catdir( @ROOT, 'dst_bag' );
     copy( $SRC_FILES . "/thréê", $DST_BAG );
 
     note "making bag $DST_BAG";
-    my $bag = $Class->make_bag($DST_BAG);
+    my $bag;
+    my $warning = Test::Warnings::warning { $bag = $Class->make_bag($DST_BAG) };
+    like(
+        $warning,
+        qr/no payload path/,
+        "Got expected warning from $Class ->make_bag()",
+    ) or diag 'got unexpected warnings:', explain($warning);
 
     ok( $bag, "Object created" );
     isa_ok( $bag, $Class );
@@ -74,7 +87,7 @@ my $DST_BAG   = File::Spec->catdir( @ROOT, 'dst_bag' );
     like(
         $warning,
         qr/no payload path/,
-        'Got expected warning from make_bag()',
+        "Got expected warning from $ClassBase ->make_bag()",
     ) or diag 'got unexpected warnings:', explain($warning);
 
     ok( $bag, "Object created" );
